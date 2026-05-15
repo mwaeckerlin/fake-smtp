@@ -1,0 +1,11 @@
+{
+  "name": "@mwaeckerlin/fake-smtp",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "docker compose build",
+    "start": "docker compose up --build --force-recreate --remove-orphans",
+    "start:daemon": "docker compose up -d --build --force-recreate --remove-orphans",
+    "start:dev": "docker compose up --build --force-recreate --remove-orphans",
+    "stop": "docker compose down"
+  }
+}

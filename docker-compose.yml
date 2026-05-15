@@ -1,0 +1,12 @@
+services:
+
+  fake-smtp:
+    image: mwaeckerlin/fake-smtp
+    build: .
+    ports:
+      - "${FAKE_SMTP_PORT:-2525}:25"
+    volumes:
+      - mails:/mails
+
+volumes:
+  mails:

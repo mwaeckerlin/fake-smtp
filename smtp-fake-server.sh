@@ -5,7 +5,9 @@ PORT=${2:-25}
 FIFO=${3:-/var/run/mail.fifo}
 
 function log() {
-    echo "$(date +"%Y-%m-%d %H:%M:%S") $*" >> "$DIR"/log
+    local msg="$(date +"%Y-%m-%d %H:%M:%S") $*"
+    echo "$msg" >> "$DIR"/log
+    echo "$msg" >&2
 }
 function send() {
     log "< $*"
@@ -14,9 +16,9 @@ function send() {
 function receive() {
     local __resultvar=$1
     local __result
-    if read __result; then
+    if IFS= read -r __result; then
         log "> $__result"
-        eval $__resultvar="'${__result::-1}'"
+        printf -v "$__resultvar" '%s' "${__result%$'\r'}"
         return 0
     else
         log "EOF"
