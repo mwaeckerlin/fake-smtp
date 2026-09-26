@@ -1,6 +1,6 @@
 # fake-smtp
 
-A minimal fake SMTP server for testing. Accepts all incoming mails without sending them anywhere — stores each message as a plain-text file and logs all SMTP traffic.
+A minimal fake SMTP server for testing. Accepts all incoming mails without sending them anywhere — stores each message as a plain-text file and logs all SMTP traffic.
 
 ## Purpose
 
@@ -31,29 +31,32 @@ Or with plain netcat:
   | nc localhost 2525
 ```
 
-## What It Does
+## Behaviour
 
 - Listens on port **25** inside the container (mapped to `FAKE_SMTP_PORT`, default **2525**)
 - Accepts every `MAIL FROM` / `RCPT TO` without authentication or TLS
-- On `DATA`: writes the full raw message to `/mails/<timestamp>-<from>-<to>.txt`
+- On `DATA`: writes the full raw message to `/mails/<timestamp>-<from>-<to>.txt`; a `/` or control character in an address becomes `_`, so every file stays in `/mails`; the leading dot of a dot-stuffed line is removed
+- Answers `451` instead of `250` when the mail cannot be written, e.g. on a read-only volume
 - Logs every SMTP command and response to `/mails/log` and stderr
-- Supports: `EHLO`, `HELO`, `MAIL FROM`, `RCPT TO`, `DATA`, `QUIT`
+- Supports: `EHLO`, `HELO`, `MAIL FROM`, `RCPT TO`, `DATA`, `QUIT`, in upper or lower case
+- Serves several clients at the same time
 - Does **not** support: `AUTH`, `STARTTLS`, extensions
+- The image is headless — one static program, no shell — runs as an unprivileged user and is published for `linux/amd64` and `linux/arm64`
 
 ## Inspecting Received Mails
 
+The image has no shell, so the mails are read through the volume, from another container or from the host:
+
 ```bash
-# list received mails
-docker compose exec fake-smtp ls /mails/
+# the SMTP log
+$ docker compose logs -f fake-smtp
 
-# read a mail
-docker compose exec fake-smtp cat /mails/<filename>
-
-# tail the SMTP log
-docker compose exec fake-smtp tail -f /mails/log
-
-# or mount the volume on the host and access directly
+# list and read received mails through the volume
+$ docker run --rm -v fake-smtp_mails:/mails:ro mwaeckerlin/very-base ls /mails/
+$ docker run --rm -v fake-smtp_mails:/mails:ro mwaeckerlin/very-base cat /mails/<filename>
 ```
+
+The volume name is `<project>_mails`, where `<project>` is the name of the compose project.
 
 ## Configuration
 
@@ -108,3 +111,12 @@ Then in your test:
 1. Trigger an action that causes the application to send an email
 2. Wait for a file to appear in `/mails/`
 3. Assert filename (recipient), headers, and body content
+
+## Development
+
+```bash
+$ npm run build
+$ npm test
+```
+
+`npm test` checks the feature register ([FEATURES.md](FEATURES.md), [TESTS.md](TESTS.md)), the headless image contract, and runs an SMTP client with Python's `smtplib` and raw sockets against the server (`tests/e2e/`). The image is built and published by the reusable workflow of [mwaeckerlin/scratch](https://github.com/mwaeckerlin/scratch#publishing-on-docker-hub).

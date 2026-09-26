@@ -1,0 +1,35 @@
+# E2E stack for mwaeckerlin/fake-smtp: the server under test and a client
+# that speaks SMTP with Python's smtplib and raw sockets and reads the stored
+# files from the shared volume.
+name: fake-smtp-e2e
+
+services:
+  fake-smtp:
+    image: mwaeckerlin/fake-smtp
+    build:
+      context: ..
+    volumes:
+      - mails:/mails
+
+  # the same server on a mail directory it cannot write into
+  fake-smtp-readonly:
+    image: mwaeckerlin/fake-smtp
+    volumes:
+      - readonly:/mails:ro
+
+  tester:
+    image: python:3.12-slim
+    profiles:
+      - tester
+    depends_on:
+      - fake-smtp
+      - fake-smtp-readonly
+    working_dir: /tests
+    volumes:
+      - ./e2e:/tests:ro
+      - mails:/mails:ro
+    command: ["python", "-u", "test_smtp.py"]
+
+volumes:
+  mails:
+  readonly:
